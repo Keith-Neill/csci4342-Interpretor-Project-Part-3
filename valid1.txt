@@ -1,0 +1,11 @@
+program addup ;
+var a , b , sum : integer ;
+begin
+read ( a ) ;
+read ( b ) ;
+sum := a + b ;
+write ( sum ) ;
+write ( a * b - 3 ) ;
+write ( a - b - 3 ) ;
+write ( ( a - b * 3 ) div 4 )
+end .

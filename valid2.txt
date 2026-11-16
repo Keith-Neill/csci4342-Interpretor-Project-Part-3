@@ -1,0 +1,15 @@
+program mixed ;
+var n , half : integer ;
+big , even : boolean ;
+begin
+read ( n ) ;
+half := n div 2 ;
+big := n > 100 ;
+even := ( half * 2 ) = n ;
+write ( half ) ;
+write ( big ) ;
+write ( even and not big ) ;
+begin
+write ( n - half ) ;
+end
+end .
