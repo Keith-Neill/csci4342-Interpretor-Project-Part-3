@@ -7,7 +7,35 @@ Description: This program reads a file with SFAscal code and displays the type o
 
 import sys
 import re
+from dataclasses import dataclass
 
+@dataclass(frozen=True)
+class BinaryOperation:
+    """Twooperandsjoinedbyanoperatorsuchas+,divor<=."""
+
+    operator:str
+    left:Expression
+    right:Expression
+    #endofClass"BinaryOperation"
+
+
+@dataclass(frozen=True)
+class Assignment:
+    """<variable>:=<expression>"""
+
+    target:Variable
+    value:Expression
+    line:int
+    #endofClass"Assignment"
+
+
+@dataclass(frozen=True)
+class Compound:
+    """begin<statement>{;<statement>}end"""
+
+    statements:list[Statement]
+    line:int
+    #endofClass"Compound"
  
 # <identifier>
 def identifier():
