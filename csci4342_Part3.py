@@ -25,7 +25,7 @@ class Assignment:
 
     target:Variable
     value:Expression
-    line:int
+    #line:int
     #endofClass"Assignment"
 
 
@@ -43,7 +43,7 @@ def identifier():
     if lexeme_tokens[i] == "Identifier Token":
         # if lexeme is an identifier, consume it by incrementing i by 1 and return i
         i = i+1
-        return 
+        return lexemes(i)
     else:
         print("Error: expected an identifier token, got", lexeme_tokens[i], "instead. '",lexemes[i],"' is not a valid identifier.")
         sys.exit(1)
@@ -55,10 +55,10 @@ def factor():
     # if "(<expression>)"
     if lexemes[i] == "(":
         i = i+1 # consume (
-        expression()
+        ex = expression()
         if lexemes[i] == ")":
             i = i+1 # consume )
-            return 
+            return ex 
         else:
             print("Error: Expected ')' after expression.")
             sys.exit(1)
@@ -66,18 +66,19 @@ def factor():
     if lexeme_tokens[i] == "Integer Token" or lexeme_tokens[i] == "Boolean Token":
         
         i = i+1 # <constant>
+        return lexemes(i)
     
     elif lexemes[i] == "not":
         
         i = i+1 # consume "not"
-        factor()
+        return factor()
     elif lexeme_tokens[i] == "Identifier Token":
-        identifier()
+        return identifier()
     else:
         print("Error: ", lexemes[i], "cannot be a factor")
         sys.exit(1)
 
-    return 
+    #return lexemes(i)
 
 # <term>
 def term():
