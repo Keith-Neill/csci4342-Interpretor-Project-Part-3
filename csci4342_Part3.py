@@ -9,13 +9,16 @@ import sys
 import re
 from dataclasses import dataclass
 
+
+
+
 @dataclass(frozen=True)
 class BinaryOperation:
     """Twooperandsjoinedbyanoperatorsuchas+,divor<=."""
 
     operator:str
-    left:Expression
-    right:Expression
+    left: Expression
+    right: Expression
     #endofClass"BinaryOperation"
 
 
@@ -23,8 +26,8 @@ class BinaryOperation:
 class Assignment:
     """<variable>:=<expression>"""
 
-    target:Variable
-    value:Expression
+    target: Variable
+    value: Expression
     #line:int
     #endofClass"Assignment"
 
@@ -33,17 +36,72 @@ class Assignment:
 class Compound:
     """begin<statement>{;<statement>}end"""
 
-    statements:list[Statement]
-    line:int
+    statements: list[Statement]
+    #line: int
     #endofClass"Compound"
  
+@dataclass(frozen=True)
+class IfStatement:
+    
+
+    condition: Expression
+    then_part: Statement
+    else_part: Statement
+    #endofClass"IfStatement"
+
+@dataclass(frozen=True)
+class WhileStatement:
+    
+    condition: Expression
+    inner_loop_part: Statement
+    #endofClass"WhileStatement"
+
+@dataclass(frozen=True)
+class ProcedureBlock:
+    
+    variable_part: Variable
+    statement_part: Statement
+    #endofClass"ProcedureBlock"
+
+@dataclass(frozen=True)
+class ProcedureDeclaration:
+    
+    identifier: Variable
+    procedure_block: ProcedureBlock
+    #endofClass"ProcedureDeclaration"
+
+@dataclass(frozen=True)
+class VariableDeclaration:
+    
+    name: Variable
+    type: Type
+    #endofClass"VariableDeclaration"
+
+@dataclass(frozen=True)
+class Block:
+    
+    variable: variable
+    procedure: Procedure
+    statement: Statement
+    #endofClass"VariableDeclaration"
+
+@dataclass(frozen=True)
+class Program:
+    
+    identifier: Variable
+    block: Block
+    #endofClass"VariableDeclaration"
+
+
+
 # <identifier>
 def identifier():
     global i
     if lexeme_tokens[i] == "Identifier Token":
         # if lexeme is an identifier, consume it by incrementing i by 1 and return i
         i = i+1
-        return lexemes(i)
+        value = lexemes[i]
+        return value
     else:
         print("Error: expected an identifier token, got", lexeme_tokens[i], "instead. '",lexemes[i],"' is not a valid identifier.")
         sys.exit(1)
@@ -83,60 +141,67 @@ def factor():
 # <term>
 def term():
     global i
-    factor()
+    tree = factor()
     if lexeme_tokens[i] == "Multiplication Token":
         multiply_more_factors = True
     else:
         multiply_more_factors = False
     
     while multiply_more_factors:
+        operation = lexemes(i)
         i = i+1 # consume multiplication lexeme
-        factor()
+        right = factor()
+        tree = BinaryOperation(operation, tree, right)
         if lexeme_tokens[i] != "Multiplication Token":
             multiply_more_factors = False
     
-    return 
+    return tree
 
 # <simple expression>
 def simple_expression():
     global i
-    term()
+    tree = term()
     if lexeme_tokens[i] == "Addition Token":
         add_more_terms = True
     else:
         add_more_terms = False
         
     while add_more_terms:
+        operation = lexemes(i)
         i = i+1 # consume addition lexeme
-        term()
+        right = term()
+        tree = BinaryOperation(operation, tree, right)
         if lexeme_tokens[i] != "Addition Token":
             add_more_terms = False
         
-    return 
+    return tree
 
 
 # <expression>
 def expression():
     global i
-    simple_expression()
+    left = simple_expression()
     if lexeme_tokens[i] == "Relation Token":
+        operation = lexemes(i)
         i = i+1 # consume lexeme with relation token
-        simple_expression()
-    return 
+        right = simple_expression()
+        return BinaryOperation(operation, left, right)
+    
+    return left 
 
 # <assignment statement>
 def assignment_statement():
     global i
-    identifier()
+    target = identifier()
     if lexeme_tokens[i] == "Assignment Token":
         i = i+1
     else:
         print("Error: Expected Assignment Token, got", lexeme_tokens[i], "instead.")
         sys.exit(1)
 
-    expression()
+    value = expression()
     
-    return 
+    return Assignment(target, value)
 
 
 # <read statement>
@@ -144,101 +209,100 @@ def read_statement():
     global i
     i = i+1 # consume "read"
     i = i+1 # consume (
-    identifier()
+    id = identifier()
     if lexemes[i] == ")":
         i = i+1 # consume )
     else:
         print("Error: ')' is expected after read statement")
         sys.exit(1)
     
-    return 
+    return id 
 
 # <write statement>
 def write_statement():
     global i
     i = i+1 # consume "write"
     i = i+1 # consume (
-    expression() # <output value>
+    wr = expression() # <output value>
     if lexemes[i] == ")":
         i = i+1 # consume )
     else:
         print("Error: ')' is expected after write statement")
         sys.exit()
-    return 
+    return wr 
 
 # <simple statement>
 def simple_statement():
     
     if lexeme_tokens[i] == "Identifier Token" and lexeme_tokens[i+1] == "Assignment Token":
-       assignment_statement()
+      return assignment_statement()
     elif lexeme_tokens[i] == "Identifier Token":
-        identifier() # <procedure statement>
+        return identifier() # <procedure statement>
     elif lexemes[i] == "read":
-        read_statement()
+        return read_statement()
     elif lexemes[i] == "write":
-        write_statement()
+        return write_statement()
     else:
         print("Error: ",lexemes[i],"is not recognised as a statement.")
         sys.exit(1)
        
-    return 
 
 
 # <if statement>
 def if_statement():
     global i
     i = i+1 # consume "if"
-    expression()
+    condition = expression()
     if lexemes[i] == "then":
         i = i+1 # consume then
     else:
         print("Error: Expected 'then' after if statenent.")
         sys.exit(1)
-    statement()
+    then_part = statement()
     if lexemes[i] == "else":
         i = i+1 # consume else
-        statement()
-    return 
+        else_part = statement()
+    return IfStatement(condition, then_part, else_part)
 
 # <while statement>
 def while_statement():
     global i
     i = i+1 # consume while
-    expression()
+    condition = expression()
     if lexemes[i] == "do":
         i = i+1 # consume do
     else:
         print("Error: Expected 'do' after exopression in while statement.")
         sys.exit(1)
-    statement()
-    return 
+    inner_loop_part = statement()
+    return WhileStatement(condition, inner_loop_part) 
 
 # <structured statenebt>
 def structured_statement():
     if lexemes[i] == "begin":
-        compound_statement()
+        return compound_statement()
     elif lexemes[i] == "if":
-        if_statement()
+        return if_statement()
     elif lexemes[i] == "while":
-        while_statement()
+        return while_statement()
     else:
         print("Error: ",lexemes[i], " is not recognised as a structured statement.")
-    return 
+        return
+
 
 # <statement>
 def statement():
     
     if lexeme_tokens[i] == "Identifier Token" or lexemes[i] == "read" or lexemes[i] == "write":
-        simple_statement()
+       return simple_statement()
     elif lexemes[i] == "begin" or lexemes[i] == "if" or lexemes[i] == "while":
-        structured_statement()
+        return structured_statement()
     elif lexemes[i] == "end" or lexemes[i] == ";":
         return  # <empty statement>
     else:
         print("Error: ", lexemes[i], "is not the start of a valid statement.")
         sys.exit(i)
 
-    return 
 
 # <compound statement>
 def compound_statement():
@@ -250,7 +314,7 @@ def compound_statement():
         print("Error: Expected lexene 'begin', got", lexemes[i], "instead")
         sys.exit(1)
 
-    statement()
+    statements = [statement()]
     
     if lexemes[i] == ";":
        more_statements = True
@@ -259,7 +323,7 @@ def compound_statement():
 
     while more_statements:
         i = i+1 # consume ;
-        statement()
+        statements.append(statement())
         if lexemes[i] == "end" or lexemes[i] != ";":
             more_statements = False
 
@@ -272,34 +336,33 @@ def compound_statement():
     else:
         i = i + 1 # consume end
 
-    return 
+    return Compound([statement for statement in statements if statement is not None])
 
 # <statement part>
 def statement_part():
-    compound_statement()
-    return 
+    return compound_statement()
 
 #  <procedure block>
 def procedure_block():
-    variable_declarition_part()
-    statement_part()
+    variable_declaration = variable_declarition_part()
+    statement_declaration = statement_part()
 
-    return 
+    return ProcedureBlock(variable_declaration, statement_declaration)
 
 # <procedure declaration>
 def procedure_declaration():
     global i
     i = i+1 # consume "procedure"
-    identifier()
+    id = identifier()
     if lexemes[i] == ";":
         i = i+1 # consume ";"
     else:
         print("Error: Expected a ';', got", lexemes[i], "instead")
         sys.exit(1)
 
-    procedure_block()
+    block = procedure_block()
 
-    return 
+    return ProcedureDeclaration(id, block)
 
 # <procedure declaration part>
 def procedure_declaration_part():
@@ -309,8 +372,9 @@ def procedure_declaration_part():
     else:
         more_procedure_declarations = False
 
+    procedures = []
     while more_procedure_declarations:
-        procedure_declaration()
+        procedures.apen(procedure_declaration())
         if lexemes[i] == ";":
             i = i+1 # consume ";"
         else:
@@ -318,29 +382,30 @@ def procedure_declaration_part():
             sys.exit(1)
         if lexemes[i] != "procedure":
             more_procedure_declarations = False
-    return 
+    return procedures
         
 
 # <simple type>
 def simple_type():
     global i
     if lexeme_tokens[i] == "Data Type Token":
+        type = lexemes(i)
         i = i+1 # consume data type
     else:
         print("Error: Expected a Data Type Token, got a ", lexeme_tokens[i], " instead. Lexeme ", lexemes[i], " is not a Data Type Token.")
         sys.exit(1)
-    return 
+    return type
 
 # <type>
 def type():
-    simple_type()
-    return 
+    return simple_type()
+    
 
 #<variable declaration>
 def variable_declaration():
     global i
        
-    identifier()
+    names = [identifier()]
 
     if lexemes[i] == "," and lexeme_tokens[i+1] == "Identifier Token":
         more_identifiers = True
@@ -353,7 +418,7 @@ def variable_declaration():
             sys.exit(1)
         
         i = i+1 # consume ","
-        identifier()
+        names.append(identifier())
 
         if lexemes[i] != "," and lexeme_tokens[i+1] != "Identifier Token":
             more_identifiers = False
@@ -364,9 +429,10 @@ def variable_declaration():
         print("Error: Expect a ':', got",lexemes[i], "instead.")
         sys.exit(1)
 
-    type()
+    type = type()
     
-    return
+    return [ VariableDeclaration(name.lexeme, type_name, name.line)
+            for name in names]
 
 # <variable declaration part>
 def variable_declarition_part():
@@ -377,7 +443,7 @@ def variable_declarition_part():
         # if the current lexeme isn't i, go back to block() function. <variable declaration part> -> empty string
         return 
     
-    variable_declaration()
+    return variable_declaration()
 
     if lexemes[i] == ";":
         i = i+1 # consume ";"
@@ -407,10 +473,10 @@ def variable_declarition_part():
 # <block>
 def block():
     
-    variable_declarition_part()
-    procedure_declaration_part()
-    statement_part()
-    return
+    variable = variable_declarition_part()
+    procedure = procedure_declaration_part()
+    statement = statement_part()
+    return Block(variable, procedure, statement)
 
 
 # <program>
@@ -418,14 +484,14 @@ def program():
     global i
     if lexemes[i] == "program":
         i = i+1 # consumed input "program" increment i by 1
-        identifier()
+        id = identifier()
         if lexemes[i] == ";":
             i = i+1
         else:
             print("Error: ';' is expected. Fornd'", lexemes[i], "'instead.")
             sys.exit(1)
         
-        block()
+        block = block()
 
         if i > len(lexemes) - 1:
             print("Error: Expect '.' after last 'end'.")
@@ -433,12 +499,13 @@ def program():
             print("Error: There cannot be anything after the last 'end' in the program.")
         else:
             print("Parse successful.")
+        return Program(id, block)
 
     else:
         print("Error: expected 'program', found'" ,lexemes[i], "'instead")
         sys.exit(1)
 
-# classes      
+     
 
 if len(sys.argv) != 2:
     print("Invalid number of arguments. You must specify a file for the input.")
@@ -495,4 +562,5 @@ for lexeme in lexemes:
 
 # time to put the input through the grammar using the tokens and the lexemes list
 i = 0 # start at position 0 in the lists
-program()
+program = program()
+
