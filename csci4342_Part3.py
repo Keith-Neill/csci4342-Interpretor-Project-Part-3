@@ -8,7 +8,12 @@ Description: This program reads a file with SFAscal code and displays the type o
 import sys
 import re
 from dataclasses import dataclass
+from typing import Callable, NoReturn, Union
 
+
+@dataclass(frozen=True)
+class Variable:
+    identifier: int | bool | str
 
 
 
@@ -74,16 +79,16 @@ class ProcedureDeclaration:
 class VariableDeclaration:
     
     name: Variable
-    type: Type
+    type: str
     #endofClass"VariableDeclaration"
 
 @dataclass(frozen=True)
 class Block:
     
-    variable: variable
-    procedure: Procedure
+    variable: Variable
+    procedure: ProcedureDeclaration
     statement: Statement
-    #endofClass"VariableDeclaration"
+    #endofClass"Block"
 
 @dataclass(frozen=True)
 class Program:
@@ -92,16 +97,34 @@ class Program:
     block: Block
     #endofClass"VariableDeclaration"
 
+@dataclass(frozen=True)
+class WriteStatement:
+    """write ( <output value> )"""
 
+    value: Expression
+
+@dataclass(frozen=True)
+class ReadStatement:
+    """Read ( <input value> )"""
+
+    target: Variable 
+
+
+# The kinds of node an expression can be.
+Expression = Union[Variable, BinaryOperation]
+
+Statement = Union[Assignment, ProcedureBlock, Compound, IfStatement,
+                  WhileStatement, ReadStatement, WriteStatement]
 
 # <identifier>
 def identifier():
     global i
     if lexeme_tokens[i] == "Identifier Token":
         # if lexeme is an identifier, consume it by incrementing i by 1 and return i
-        i = i+1
         value = lexemes[i]
-        return value
+        i = i+1
+        
+        return Variable(value)
     else:
         print("Error: expected an identifier token, got", lexeme_tokens[i], "instead. '",lexemes[i],"' is not a valid identifier.")
         sys.exit(1)
@@ -124,7 +147,7 @@ def factor():
     if lexeme_tokens[i] == "Integer Token" or lexeme_tokens[i] == "Boolean Token":
         
         i = i+1 # <constant>
-        return lexemes(i)
+        return lexemes[i]
     
     elif lexemes[i] == "not":
         
@@ -148,7 +171,7 @@ def term():
         multiply_more_factors = False
     
     while multiply_more_factors:
-        operation = lexemes(i)
+        operation = lexemes[i]
         i = i+1 # consume multiplication lexeme
         right = factor()
         tree = BinaryOperation(operation, tree, right)
@@ -167,7 +190,7 @@ def simple_expression():
         add_more_terms = False
         
     while add_more_terms:
-        operation = lexemes(i)
+        operation = lexemes[i]
         i = i+1 # consume addition lexeme
         right = term()
         tree = BinaryOperation(operation, tree, right)
@@ -182,7 +205,7 @@ def expression():
     global i
     left = simple_expression()
     if lexeme_tokens[i] == "Relation Token":
-        operation = lexemes(i)
+        operation = lexemes[i]
         i = i+1 # consume lexeme with relation token
         right = simple_expression()
         return BinaryOperation(operation, left, right)
@@ -216,7 +239,7 @@ def read_statement():
         print("Error: ')' is expected after read statement")
         sys.exit(1)
     
-    return id 
+    return ReadStatement(id)
 
 # <write statement>
 def write_statement():
@@ -229,7 +252,7 @@ def write_statement():
     else:
         print("Error: ')' is expected after write statement")
         sys.exit()
-    return wr 
+    return WriteStatement(wr)
 
 # <simple statement>
 def simple_statement():
@@ -374,7 +397,7 @@ def procedure_declaration_part():
 
     procedures = []
     while more_procedure_declarations:
-        procedures.apen(procedure_declaration())
+        procedures.append(procedure_declaration())
         if lexemes[i] == ";":
             i = i+1 # consume ";"
         else:
@@ -389,7 +412,7 @@ def procedure_declaration_part():
 def simple_type():
     global i
     if lexeme_tokens[i] == "Data Type Token":
-        type = lexemes(i)
+        type = lexemes[i]
         i = i+1 # consume data type
     else:
         print("Error: Expected a Data Type Token, got a ", lexeme_tokens[i], " instead. Lexeme ", lexemes[i], " is not a Data Type Token.")
@@ -413,6 +436,7 @@ def variable_declaration():
         more_identifiers = False
     
     while more_identifiers:
+        
         if lexemes[i] != ",":
             print("Error: A ',' is expected, got lexeme ", lexemes[i], "instead.")
             sys.exit(1)
@@ -429,9 +453,9 @@ def variable_declaration():
         print("Error: Expect a ':', got",lexemes[i], "instead.")
         sys.exit(1)
 
-    type = type()
+    type_name = type()
     
-    return [ VariableDeclaration(name.lexeme, type_name, name.line)
+    return [ VariableDeclaration(name, type_name)
             for name in names]
 
 # <variable declaration part>
@@ -443,13 +467,14 @@ def variable_declarition_part():
         # if the current lexeme isn't i, go back to block() function. <variable declaration part> -> empty string
         return 
     
-    return variable_declaration()
-
+    """
     if lexemes[i] == ";":
         i = i+1 # consume ";"
     else:
-        print("Error: Expected a ';', got", lexeme[i], "instead")
+        print("Error: Expected a ';', got", lexemes[i], "instead")
         sys.exit(1)
+    """
+    declarations = []
 
     if lexeme_tokens[i] == "Identifier Token":
         more_variable_declaritions = True
@@ -458,16 +483,17 @@ def variable_declarition_part():
     
     while more_variable_declaritions:
         
-        variable_declaration()
+        declarations.append(variable_declaration())
         if lexemes[i] == ";":
             i = i+1 # consume ";"
         else:
-            print("Error: Expected a ';', got", lexeme[i], "instead")
+            print("Error: Expected a ';', got", lexemes[i], "instead")
             sys.exit(1)
         if lexeme_tokens[i] != "Identifier Token":
             more_variable_declaritions = False
         
-    return 
+    return declarations
+    
     
 
 # <block>
@@ -491,7 +517,7 @@ def program():
             print("Error: ';' is expected. Fornd'", lexemes[i], "'instead.")
             sys.exit(1)
         
-        block = block()
+        b = block()
 
         if i > len(lexemes) - 1:
             print("Error: Expect '.' after last 'end'.")
@@ -562,5 +588,7 @@ for lexeme in lexemes:
 
 # time to put the input through the grammar using the tokens and the lexemes list
 i = 0 # start at position 0 in the lists
-program = program()
+pr = program()
+pid = pr.identifier.identifier
+print("", pid)
 
